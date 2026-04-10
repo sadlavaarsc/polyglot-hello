@@ -1,0 +1,85 @@
+name: Matrix Build
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build C (GNU/GCC)
+        shell: bash
+        run: |
+          mkdir -p dist
+          gcc c/hello.c -o dist/hello_c${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+
+      - name: Build C++ (GNU/GCC)
+        shell: bash
+        run: |
+          g++ cpp/hello.cpp -o dist/hello_cpp${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+
+      - name: Build Rust
+        shell: bash
+        run: |
+          rustc rust/hello.rs -o dist/hello_rust${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+
+      - name: Build Go
+        shell: bash
+        run: |
+          go build -o dist/hello_go${{ matrix.os == 'windows-latest' && '.exe' || '' }} go/hello.go
+
+      - name: Build C#
+        shell: bash
+        run: |
+          dotnet new console -n csharp_build -o csharp_build --force
+          cp csharp/Hello.cs csharp_build/Program.cs
+          dotnet publish csharp_build -c Release -o dist/hello_csharp_bin --self-contained true -p:PublishSingleFile=true -r ${{ matrix.os == 'windows-latest' && 'win-x64' || matrix.os == 'macos-latest' && 'osx-x64' || 'linux-x64' }}
+
+      - name: Build Java
+        shell: bash
+        run: |
+          javac java/Hello.java -d dist
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.os }}
+          path: dist/**/**
