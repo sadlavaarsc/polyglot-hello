@@ -45,6 +45,81 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.13.0
+
+      - name: Setup Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.0'
+
+      - name: Setup Kotlin
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            sudo apt-get update && sudo apt-get install -y kotlin
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            brew install kotlin || true
+          else
+            choco install kotlin
+          fi
+
+      - name: Setup Fortran
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            sudo apt-get update && sudo apt-get install -y gfortran
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            brew install gcc || true
+          else
+            choco install mingw || true
+          fi
+          gfortran --version
+
+      - name: Setup Pascal
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            sudo apt-get update && sudo apt-get install -y fp-compiler
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            brew install fpc || true
+          else
+            choco install fpc || true
+          fi
+          fpc -iV
+
+      - name: Setup Haskell
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.10.1'
+
+      - name: Setup Ada
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            sudo apt-get update && sudo apt-get install -y gnat
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            brew install gcc || true
+          else
+            C:/msys64/usr/bin/pacman -Sy --noconfirm mingw-w64-x86_64-gcc-ada
+            echo "C:/msys64/mingw64/bin" >> "$GITHUB_PATH"
+          fi
+          gnatmake --version || true
+
+      - name: Setup COBOL
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            sudo apt-get update && sudo apt-get install -y gnucobol
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            brew install gnu-cobol || true
+          else
+            C:/msys64/usr/bin/pacman -Sy --noconfirm mingw-w64-x86_64-gnucobol
+          fi
+          cobc --version || true
+
       - name: Build C (GNU/GCC)
         shell: bash
         run: |
@@ -77,6 +152,54 @@ jobs:
         shell: bash
         run: |
           javac java/Hello.java -d dist
+
+      - name: Build Zig
+        shell: bash
+        run: |
+          zig build-exe zig/hello.zig -o dist/hello_zig${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+
+      - name: Build Swift
+        shell: bash
+        run: |
+          swiftc swift/hello.swift -o dist/hello_swift${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+
+      - name: Build Kotlin
+        shell: bash
+        run: |
+          kotlinc kotlin/Hello.kt -include-runtime -d dist/hello_kotlin.jar
+
+      - name: Build Fortran
+        shell: bash
+        run: |
+          gfortran fortran/hello.f90 -o dist/hello_fortran${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+
+      - name: Build Pascal
+        shell: bash
+        run: |
+          fpc -ohello_pascal pascal/hello.pas
+          cp hello_pascal${{ matrix.os == 'windows-latest' && '.exe' || '' }} dist/
+
+      - name: Build Haskell
+        shell: bash
+        run: |
+          ghc haskell/hello.hs -o dist/hello_haskell${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+
+      - name: Build Ada
+        shell: bash
+        run: |
+          cd ada
+          gnatmake hello.adb -o ../dist/hello_ada${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+          cd ..
+
+      - name: Build COBOL
+        shell: bash
+        run: |
+          cobc -x -o dist/hello_cobol${{ matrix.os == 'windows-latest' && '.exe' || '' }} cobol/hello.cob
+
+      - name: Copy interpreted scripts to dist
+        shell: bash
+        run: |
+          cp bash/hello.sh lua/hello.lua ruby/hello.rb perl/hello.pl powershell/hello.ps1 js/hello.js python/hello.py dist/
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
